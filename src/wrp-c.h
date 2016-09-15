@@ -14,6 +14,9 @@
  * limitations under the License.
  *
  */
+#ifndef __WRP_C_H__
+#define __WRP_C_H__
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -35,9 +38,9 @@ enum wrp_msg_type {
 };
 
 enum wrp_format {
-    WRP_BYTES,
-    WRP_BASE64,
-    WRP_STRING
+    WRP_BYTES = 0,
+    WRP_BASE64 = 1,
+    WRP_STRING = 2
 };
 
 struct wrp_auth_msg {
@@ -55,11 +58,18 @@ struct money_trace_spans {
     size_t count;
 };
 
+
+typedef struct headers_struct {
+    size_t count;
+    // Flexible Array Must be the last element
+    char *headers[];
+} headers_t;
+
 struct wrp_req_msg {
     char *transaction_uuid;
     char *source;
     char *dest;
-    char **headers;                         /* NULL terminated list */
+    headers_t *headers;                         /* NULL terminated list */
     bool include_spans;
     struct money_trace_spans spans;
     void *payload;
@@ -69,7 +79,7 @@ struct wrp_req_msg {
 struct wrp_event_msg {
     char *source;
     char *dest;
-    char **headers;                         /* NULL terminated list */
+    headers_t *headers;                         /* NULL terminated list */
     void *payload;
     size_t payload_size;
 };
@@ -158,7 +168,4 @@ char* wrp_struct_to_string( const wrp_msg_t *msg );
  */
 void wrp_free_struct( wrp_msg_t *msg );
 
-/*----------------------------------------------------------------------------*/
-/*                             Internal functions                             */
-/*----------------------------------------------------------------------------*/
-/* none */
+#endif

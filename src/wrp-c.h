@@ -125,8 +125,8 @@ typedef struct {
         struct wrp_auth_msg  auth;
         struct wrp_req_msg   req;
         struct wrp_event_msg event;
-	struct wrp_crud_msg crud;
-	struct wrp_svc_registration_msg reg;
+	    struct wrp_crud_msg crud;
+	    struct wrp_svc_registration_msg reg;
     } u;
 } wrp_msg_t;
 

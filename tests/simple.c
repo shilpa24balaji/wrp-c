@@ -42,7 +42,6 @@ struct test_vectors {
 headers_t headers = { 2, {"Header 1", "Header 2"}};
 headers_t single_headers = { 1, {"Single Header 1"} };
 
-
 const struct money_trace_span spans[] = {
     {
         .name = "hop-1",
@@ -50,6 +49,7 @@ const struct money_trace_span spans[] = {
         .duration = 11
     },
 };
+
 
 const struct test_vectors test[] = {
     /*--------------------------------------------------------------------*/
@@ -710,6 +710,12 @@ void test_encode_decode()
           .u.req.spans.count = 0,
           .u.req.payload = "123",
           .u.req.payload_size = 3 };
+        
+          const wrp_msg_t reg = { .msg_type = WRP_MSG_TYPE__SVC_REGISTRATION,
+          .u.reg.service_name = "IoT",
+          .u.reg.url = "tcp://127.0.0.0:6888"};
+          
+        
 
 	// msgpack encode
 	size = wrp_struct_to( &msg, WRP_BYTES, &bytes );
@@ -751,13 +757,17 @@ void test_encode_decode()
         
  	wrp_free_struct(message);
 
+    printf("Encode-Decode for BASE64\n");
 	// msgpack encode
 	base64_size = wrp_struct_to( &msg, WRP_BASE64, &bytes );
 	/* print the encoded message */
+	printf("After encode\n");
 	_internal_tva_xxd( bytes, base64_size, 0 );
 
 	// msgpck decode
+	printf("call decode\n");
 	rv = wrp_to_struct(bytes, base64_size, WRP_BASE64, &message);
+	printf("after decode\n");
 	free(bytes);
 	
 	CU_ASSERT_EQUAL( rv, size );
@@ -775,11 +785,11 @@ void test_encode_decode()
         
  	wrp_free_struct(message);
 
-
+printf("another Encode-Decode for BASE64\n");
 	// msgpack encode
-        const wrp_msg_t *event_msg = &test[5].in;
+    const wrp_msg_t *event_msg = &test[5].in;
 	size = wrp_struct_to( event_msg, WRP_BYTES, &bytes );
-        free(bytes);
+    free(bytes);
         
 	base64_size = wrp_struct_to( event_msg, WRP_BASE64, &bytes );
 	/* print the encoded message */
@@ -813,7 +823,6 @@ void test_encode_decode()
 	printf("decoded source:%s\n", event_msg->u.event.source);
 	printf("decoded dest:%s\n", event_msg->u.event.dest);
 	printf("decoded payload:%s\n", (char*)event_msg->u.event.payload);  
-        
    
   
 	// msgpack encode
@@ -877,6 +886,28 @@ void test_encode_decode()
         }              
  
         wrp_free_struct(message);
+   
+   printf("msgtype 9--Registration message\n");     
+        // msgpack encode for msgtype 9--Registration message
+	size = wrp_struct_to( &reg, WRP_BYTES, &bytes );
+	/* print the encoded message */
+	_internal_tva_xxd( bytes, size, 0 );
+
+	// msgpck decode
+	rv = wrp_to_struct(bytes, size, WRP_BYTES, &message);
+	free(bytes);
+
+	CU_ASSERT_EQUAL( rv, size );
+	CU_ASSERT_EQUAL( message->msg_type, reg.msg_type );
+	CU_ASSERT_STRING_EQUAL( message->u.reg.service_name, reg.u.reg.service_name );
+	CU_ASSERT_STRING_EQUAL( message->u.reg.url, reg.u.reg.url );
+	
+	printf("decoded msgType:%d\n", message->msg_type);
+	printf("decoded service_name:%s\n", message->u.reg.service_name);
+	printf("decoded dest:%s\n", message->u.reg.url);
+	
+    wrp_free_struct(message);
+        
         message = (wrp_msg_t *) malloc(sizeof(wrp_msg_t));
         printf("Testing invalid message type free\n");
         message->msg_type = WRP_MSG_TYPE__UNKNOWN;
@@ -884,12 +915,357 @@ void test_encode_decode()
 
 }
 
+void test_crud_message()
+{
+    ssize_t size, rv;
+	void *bytes;
+	wrp_msg_t *message;
+
+	printf("\nInside Crud_encode_decode()....\n");
+	
+	//headers_t two_headers = { 2, {"Header1 1", "Header2 2"}};
+    //headers_t one_headers = { 1, {"Single Header1 1"} };
+	
+	
+	/*struct data map_data1[] = {{"webpa_server_url","fabric.webpa.comcast.net"}};
+    data_t updatePayload = {1, map_data1};*/
+
+    struct data map_data3[] = {{"webpa_server_url","fabric.webpa.comcast.net"},{"device_info_status","down"},   {"wifi_device_info","Radio"}};
+    data_t crudPayload = {3, map_data3};
+    
+    struct data meta_data2[] = {{"firmware","PROD-DEV"},{"model","TG1680"}};
+    data_t meta_data = {2, meta_data2};
+
+    const struct money_trace_span crud_spans[] = {
+        {
+            .name = "hop-1",
+            .start = 123000044,
+            .duration = 11
+        },
+    };
+
+    struct data mapData[] = {
+        {
+            .name = "uuid",
+            .value = "1123"
+        },
+        {
+            .name = "boot_time",
+            .value = "65sec"
+        },
+    };
+
+    data_t createMap = {2, mapData};
+    
+    const wrp_msg_t create = 
+     { 
+      .msg_type = WRP_MSG_TYPE__CREATE,
+      .u.crud.transaction_uuid = "c07ee5e1-70be-444c-a156-097c767ad8aa",
+      .u.crud.source = "source-address",
+      .u.crud.dest = "dest-address",
+      .u.crud.headers = NULL,
+      .u.crud.metadata = NULL,
+      .u.crud.include_spans = false,
+      .u.crud.spans.spans = NULL,
+      .u.crud.spans.count = 0,
+      .u.crud.status = 1,
+      .u.crud.path = "/Harvester",
+      .u.crud.payload = &createMap
+    };
+     const wrp_msg_t retreive = 
+     { 
+      .msg_type = WRP_MSG_TYPE__RETREIVE,
+      .u.crud.transaction_uuid = "c07ee5e1-70be-444c-a156-097c767ad8aa",
+      .u.crud.source = "source-address",
+      .u.crud.dest = "dest-address",
+      //.u.crud.headers = &two_headers,
+      .u.crud.headers = NULL,
+      .u.crud.metadata = NULL,
+      .u.crud.include_spans = false,
+      .u.crud.spans.spans = ( struct money_trace_span* ) crud_spans,
+      .u.crud.spans.count = sizeof( crud_spans ) / sizeof( struct money_trace_span ),
+      .u.crud.status = 1,
+      .u.crud.path = "/IOT",
+      .u.crud.payload = NULL
+     };
+      
+      const wrp_msg_t update = 
+      { 
+      .msg_type = WRP_MSG_TYPE__UPDATE,
+      .u.crud.transaction_uuid = "c07ee5e1-70be-444c-a156-097c767ad8aa",
+      .u.crud.source = "source-address",
+      .u.crud.dest = "dest-address",
+      .u.crud.headers = NULL,
+      .u.crud.metadata = NULL,
+      .u.crud.include_spans = false,
+      .u.crud.spans.spans = ( struct money_trace_span* ) spans,
+      .u.crud.spans.count = sizeof( spans ) / sizeof( struct money_trace_span ),
+      .u.crud.status = 0,
+      .u.crud.path = "/Harvester",
+      .u.crud.payload = &crudPayload
+       };
+         
+     const wrp_msg_t delete = 
+     { 
+      .msg_type = WRP_MSG_TYPE__DELETE,
+      .u.crud.transaction_uuid = "c07ee5e1-70be-444c-a156-097c767ad8aa",
+      .u.crud.source = "source-address",
+      .u.crud.dest = "dest-address",
+      .u.crud.headers = NULL,
+      .u.crud.metadata = NULL,
+      .u.crud.include_spans = false,
+      .u.crud.spans.spans = NULL,
+      .u.crud.spans.count = 0,
+      .u.crud.status = 1,
+      .u.crud.path = "/IOT",
+      .u.crud.payload = NULL
+       };
+      
+      const wrp_msg_t meta_payload = 
+      { 
+      .msg_type = WRP_MSG_TYPE__UPDATE,
+      .u.crud.transaction_uuid = "c07ee5e1-70be-444c-a156-097c767ad8aa",
+      .u.crud.source = "source-address",
+      .u.crud.dest = "dest-address",
+      .u.crud.headers = NULL,
+      .u.crud.metadata = &meta_data,
+      .u.crud.include_spans = false,
+      .u.crud.spans.spans = ( struct money_trace_span* ) spans,
+      .u.crud.spans.count = sizeof( spans ) / sizeof( struct money_trace_span ),
+      .u.crud.status = 1,
+      .u.crud.path = "/Harvester",
+      .u.crud.payload = &crudPayload
+       };
+    
+    printf("       **************** CRUD Create*****************     \n");    
+
+    // msgpack encode for CRUD
+	size = wrp_struct_to( &create, WRP_BYTES, &bytes );
+	/* print the encoded message */
+	_internal_tva_xxd( bytes, size, 0 );
+
+	// msgpck decode
+	rv = wrp_to_struct(bytes, size, WRP_BYTES, &message);
+	free(bytes);
+        
+	CU_ASSERT_EQUAL( rv, size );
+	CU_ASSERT_EQUAL( message->msg_type, create.msg_type );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.source, create.u.crud.source );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.dest, create.u.crud.dest );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.transaction_uuid, create.u.crud.transaction_uuid );
+	   	 
+	   	 if(message->u.crud.payload != NULL)
+	   	 {  
+	   	    printf("message->u.crud.payload is NOT NULL %zu\n",message->u.crud.payload->count);
+	   	    size_t n = 0;
+	   	    while ( n < message->u.crud.payload->count) 
+	   	    {
+                 printf("KeyName in test case %s\n",create.u.crud.payload->data_items[n].name);
+                 printf("KeyValue in test case %s\n",create.u.crud.payload->data_items[n].value);
+                 CU_ASSERT_STRING_EQUAL(create.u.crud.payload->data_items[n].name,message->u.crud.payload->data_items[n].name);
+                 CU_ASSERT_STRING_EQUAL(create.u.crud.payload->data_items[n].value,message->u.crud.payload->data_items[n].value);
+                 n++;
+            }
+	   	 }
+	   	 else
+	   	 {
+	   	 printf("message->u.crud.payload is NULL\n");
+	   	 }   	
+        
+        if (NULL != message->u.crud.headers)
+        {
+            size_t n = 0;
+            
+            printf("headers count returned is %d\n", (int ) message->u.req.headers->count);
+            if (NULL != message->u.crud.headers) {
+            while ( n < message->u.crud.headers->count) {
+                 CU_ASSERT_STRING_EQUAL(create.u.crud.headers->headers[n],
+                                        message->u.crud.headers->headers[n]);
+                 n++;
+                }
+            } else {
+                CU_ASSERT(false);
+            }
+        }
+	
+	printf("decoded msgType:%d\n", message->msg_type);
+	printf("decoded source:%s\n", message->u.crud.source);
+	printf("decoded dest:%s\n", message->u.crud.dest);
+	printf("decoded transaction_uuid:%s\n", message->u.crud.transaction_uuid);
+	wrp_free_struct(message);
+ 
+ printf("       **************** CRUD retreive*****************     \n");    
+
+    // msgpack encode for CRUD
+	size = wrp_struct_to( &retreive, WRP_BYTES, &bytes );
+	/* print the encoded message */
+	_internal_tva_xxd( bytes, size, 0 );
+
+	// msgpck decode
+	rv = wrp_to_struct(bytes, size, WRP_BYTES, &message);
+	free(bytes);
+        
+	CU_ASSERT_EQUAL( rv, size );
+	CU_ASSERT_EQUAL( message->msg_type, retreive.msg_type );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.source, retreive.u.crud.source );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.dest, retreive.u.crud.dest );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.transaction_uuid, retreive.u.crud.transaction_uuid );
+	   	 	   	   	
+        if (NULL != message->u.crud.headers)
+        {
+            size_t n = 0;
+            
+            printf("headers count returned is %d\n", (int ) message->u.req.headers->count);
+            if (NULL != message->u.crud.headers) {
+            while ( n < message->u.crud.headers->count) {
+                 CU_ASSERT_STRING_EQUAL(retreive.u.crud.headers->headers[n],
+                                        message->u.crud.headers->headers[n]);
+                 n++;
+                }
+            } else {
+                CU_ASSERT(false);
+            }
+        }
+	
+	printf("decoded msgType:%d\n", message->msg_type);
+	printf("decoded source:%s\n", message->u.crud.source);
+	printf("decoded dest:%s\n", message->u.crud.dest);
+	printf("decoded transaction_uuid:%s\n", message->u.crud.transaction_uuid);
+	wrp_free_struct(message);
+ 
+ printf("       **************** CRUD Update*****************     \n");    
+
+    // msgpack encode for CRUD
+	size = wrp_struct_to( &update, WRP_BYTES, &bytes );
+	/* print the encoded message */
+	_internal_tva_xxd( bytes, size, 0 );
+
+	// msgpck decode
+	rv = wrp_to_struct(bytes, size, WRP_BYTES, &message);
+	free(bytes);
+        
+	CU_ASSERT_EQUAL( rv, size );
+	CU_ASSERT_EQUAL( message->msg_type, update.msg_type );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.source, update.u.crud.source );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.dest, update.u.crud.dest );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.transaction_uuid, update.u.crud.transaction_uuid );
+	   	 
+	   	 if(message->u.crud.payload != NULL)
+	   	 {  
+	   	    size_t n = 0;
+	   	    while ( n < message->u.crud.payload->count) 
+	   	    {
+                 CU_ASSERT_STRING_EQUAL(update.u.crud.payload->data_items[n].name,message->u.crud.payload->data_items[n].name);
+                 CU_ASSERT_STRING_EQUAL(update.u.crud.payload->data_items[n].value,message->u.crud.payload->data_items[n].value);
+                 n++;
+            }
+	   	 }   	
+        if (NULL != message->u.crud.headers)
+        {
+            size_t n = 0;
+            
+            printf("headers count returned is %d\n", (int ) message->u.req.headers->count);
+            if (NULL != message->u.crud.headers) {
+            while ( n < message->u.crud.headers->count) {
+                 CU_ASSERT_STRING_EQUAL(update.u.crud.headers->headers[n],
+                                        message->u.crud.headers->headers[n]);
+                 n++;
+                }
+            } else {
+                CU_ASSERT(false);
+            }
+        }
+	
+	printf("decoded msgType:%d\n", message->msg_type);
+	printf("decoded source:%s\n", message->u.crud.source);
+	printf("decoded dest:%s\n", message->u.crud.dest);
+	printf("decoded transaction_uuid:%s\n", message->u.crud.transaction_uuid);
+	wrp_free_struct(message);
+  
+  printf("       **************** CRUD Delete*****************     \n");
+
+    // msgpack encode for CRUD
+	size = wrp_struct_to( &delete, WRP_BYTES, &bytes );
+	/* print the encoded message */
+	_internal_tva_xxd( bytes, size, 0 );
+
+	// msgpck decode
+	rv = wrp_to_struct(bytes, size, WRP_BYTES, &message);
+	free(bytes);
+        
+	CU_ASSERT_EQUAL( rv, size );
+	CU_ASSERT_EQUAL( message->msg_type, delete.msg_type );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.source, delete.u.crud.source );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.dest, delete.u.crud.dest );
+	CU_ASSERT_STRING_EQUAL( message->u.crud.transaction_uuid, delete.u.crud.transaction_uuid );
+	   		   	   	
+        if (NULL != message->u.crud.headers)
+        {
+            size_t n = 0;
+            
+            printf("headers count returned is %d\n", (int ) message->u.req.headers->count);
+            if (NULL != message->u.crud.headers) {
+            while ( n < message->u.crud.headers->count) {
+                 CU_ASSERT_STRING_EQUAL(delete.u.crud.headers->headers[n],
+                                        message->u.crud.headers->headers[n]);
+                 n++;
+                }
+            } else {
+                CU_ASSERT(false);
+            }
+        }
+	
+	printf("decoded msgType:%d\n", message->msg_type);
+	printf("decoded source:%s\n", message->u.crud.source);
+	printf("decoded dest:%s\n", message->u.crud.dest);
+	printf("decoded transaction_uuid:%s\n", message->u.crud.transaction_uuid);
+	wrp_free_struct(message);
+
+  printf("       **************** Metadata *****************     \n");
+
+    // msgpack encode for METADATA
+	size = wrp_struct_to( &meta_payload, WRP_BYTES, &bytes );
+	/* print the encoded message */
+	_internal_tva_xxd( bytes, size, 0 );
+
+	// msgpck decode
+	rv = wrp_to_struct(bytes, size, WRP_BYTES, &message);
+	free(bytes);
+        
+	CU_ASSERT_EQUAL( rv, size );
+	CU_ASSERT_EQUAL( message->msg_type, meta_payload.msg_type );
+	CU_ASSERT_STRING_EQUAL( message->u.req.source, meta_payload.u.req.source );
+	CU_ASSERT_STRING_EQUAL( message->u.req.dest, meta_payload.u.req.dest );
+	CU_ASSERT_STRING_EQUAL( message->u.req.transaction_uuid, meta_payload.u.req.transaction_uuid );
+        if (NULL != meta_payload.u.req.headers)
+        {
+            size_t n = 0;
+            printf("headers count returned is %d\n", (int ) message->u.req.headers->count);
+            if (NULL != meta_payload.u.req.headers) {
+            while ( n < meta_payload.u.req.headers->count) {
+                 CU_ASSERT_STRING_EQUAL(meta_payload.u.req.headers->headers[n],
+                                        message->u.req.headers->headers[n]);
+                 n++;
+                }
+            } else {
+                CU_ASSERT(false);
+            }
+        }
+	
+	printf("decoded msgType:%d\n", message->msg_type);
+	printf("decoded source:%s\n", message->u.req.source);
+	printf("decoded dest:%s\n", message->u.req.dest);
+	printf("decoded transaction_uuid:%s\n", message->u.req.transaction_uuid);
+ 	wrp_free_struct(message);
+
+}
 void add_suites( CU_pSuite *suite )
 {
     *suite = CU_add_suite( "wrp-c encoding tests", NULL, NULL );
     CU_add_test( *suite, "Test conversions", test_all );
     //CU_add_test( *suite, "Test struct_to_bytes()", test_to_bytes );
     //CU_add_test( *suite, "Test encode_decode()", test_encode_decode );
+    CU_add_test( *suite, "Test CRUD message", test_crud_message );
 
 }
 

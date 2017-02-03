@@ -31,7 +31,6 @@ include_directories(${INCLUDE_DIR}
                     ${INCLUDE_DIR}/trower-base64
                     ${INCLUDE_DIR}/cimplog)
 include_directories (SYSTEM /usr/include)
-link_directories ( ${LIBRARY_DIR} )
 
 enable_testing()
 
@@ -69,6 +68,8 @@ add_library(libcimplog STATIC IMPORTED)
 add_dependencies(libcimplog cimplog)
 
 endif ()
+
+link_directories ( ${LIBRARY_DIR} )
 
 add_subdirectory(src)
 

@@ -16,6 +16,7 @@ cmake_minimum_required(VERSION 2.8.7)
 
 project(wrp-c)
 include(ExternalProject)
+include(CTest)
 
 add_definitions(-std=c99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g -Werror -Wall")
@@ -27,11 +28,14 @@ set(INCLUDE_DIR ${INSTALL_DIR}/include)
 set(LIBRARY_DIR ${INSTALL_DIR}/lib${LIB_SUFFIX})
 include_directories(${INCLUDE_DIR}
                     ${INCLUDE_DIR}/msgpack
-                    ${INCLUDE_DIR}/trower-base64)
+                    ${INCLUDE_DIR}/trower-base64
+                    ${INCLUDE_DIR}/cimplog)
 include_directories (SYSTEM /usr/include)
 link_directories ( ${LIBRARY_DIR} )
 
 enable_testing()
+
+if (NOT BUILD_YOCTO)
 
 # base64 external dependency
 ExternalProject_Add(trower-base64
@@ -53,5 +57,21 @@ ExternalProject_Add(msgpack
 add_library(libmsgpack STATIC IMPORTED)
 add_dependencies(libmsgpack msgpack)
 
+# cimplog external dependency
+ExternalProject_Add(cimplog
+    PREFIX ${PREFIX_DIR}/cimplog
+    GIT_REPOSITORY https://github.com/Comcast/cimplog.git
+    GIT_TAG "master"
+    CMAKE_ARGS += -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}
+                  -DBUILD_TESTING=OFF
+)
+add_library(libcimplog STATIC IMPORTED)
+add_dependencies(libcimplog cimplog)
+
+endif ()
+
 add_subdirectory(src)
-add_subdirectory(tests)
+
+if (BUILD_TESTING)
+	add_subdirectory(tests)
+endif (BUILD_TESTING)

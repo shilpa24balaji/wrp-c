@@ -30,14 +30,15 @@
 /*                               Data Structures                              */
 /*----------------------------------------------------------------------------*/
 enum wrp_msg_type {
-    WRP_MSG_TYPE__AUTH    		= 2,
-    WRP_MSG_TYPE__REQ     		= 3,
-    WRP_MSG_TYPE__EVENT   		= 4,
-    WRP_MSG_TYPE__CREATE  		= 5,
-    WRP_MSG_TYPE__RETREIVE		= 6,
-    WRP_MSG_TYPE__UPDATE  		= 7,
-    WRP_MSG_TYPE__DELETE  		= 8,
-    WRP_MSG_TYPE__SVC_REGISTRATION  	= 9,
+    WRP_MSG_TYPE__AUTH          = 2,
+    WRP_MSG_TYPE__REQ           = 3,
+    WRP_MSG_TYPE__EVENT         = 4,
+    WRP_MSG_TYPE__CREATE        = 5,
+    WRP_MSG_TYPE__RETREIVE      = 6,
+    WRP_MSG_TYPE__UPDATE        = 7,
+    WRP_MSG_TYPE__DELETE        = 8,
+    WRP_MSG_TYPE__SVC_REGISTRATION      = 9,
+    WRP_MSG_TYPE__SVC_ALIVE     = 10,
     WRP_MSG_TYPE__UNKNOWN = 200
 };
 
@@ -81,6 +82,7 @@ typedef struct data_struct {
 
 struct wrp_req_msg {
     char *transaction_uuid;
+    char *content_type;
     char *source;
     char *dest;
     headers_t *headers;                         /* NULL terminated list */
@@ -92,6 +94,7 @@ struct wrp_req_msg {
 };
 
 struct wrp_event_msg {
+    char *content_type;
     char *source;
     char *dest;
     headers_t *headers;                         /* NULL terminated list */
@@ -110,7 +113,7 @@ struct wrp_crud_msg {
     struct money_trace_spans spans;
     int status;
     char *path;
-    data_t *payload;
+    char *payload;
 };
 
 struct wrp_svc_registration_msg {
@@ -125,8 +128,8 @@ typedef struct {
         struct wrp_auth_msg  auth;
         struct wrp_req_msg   req;
         struct wrp_event_msg event;
-	    struct wrp_crud_msg crud;
-	    struct wrp_svc_registration_msg reg;
+        struct wrp_crud_msg crud;
+        struct wrp_svc_registration_msg reg;
     } u;
 } wrp_msg_t;
 
@@ -204,4 +207,31 @@ char* wrp_struct_to_string( const wrp_msg_t *msg );
  */
 void wrp_free_struct( wrp_msg_t *msg );
 
+/**
+ *  Encode/pack only metadata from wrp_msg_t structure.
+ *
+ *  @note Do not call free of output data in failure case!
+ *
+ *  @param msg [in] packData the data_t structure to pack/encode
+ *  @param msg [out] the encoded output
+ *  @return encoded buffer size or less than 1 in failure case
+ */
+
+ssize_t wrp_pack_metadata( const data_t *packData, void **data );
+
+/**
+ * @brief appendEncodedData function to append two encoded buffer and change MAP size accordingly.
+ *
+ * @note appendEncodedData function allocates memory for buffer, caller needs to free the buffer(appendData)in
+ * both success or failure case. use wrp_free_struct() for free
+ *
+ * @param[in] encodedBuffer msgpack object (first buffer)
+ * @param[in] encodedSize is size of first buffer
+ * @param[in] metadataPack msgpack object (second buffer)
+ * @param[in] metadataSize is size of second buffer
+ * @param[out] appendData final encoded buffer after append
+ * @return  appended total buffer size or less than 1 in failure case
+ */
+
+size_t appendEncodedData( void **appendData, void *encodedBuffer, size_t encodedSize, void *metadataPack, size_t metadataSize );
 #endif
